@@ -17,20 +17,31 @@ const useAttendanceData = () => {
         const usersSnapshot = await getDocs(usersCollectionRef);
         const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        const today = format(new Date(), 'yyyy-MM-dd');
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
         const attendanceCollectionRef = collection(db, COLLECTIONS.ATTENDANCE);
-        const q = query(attendanceCollectionRef, where('date', '==', today));
+        const q = query(
+          attendanceCollectionRef,
+          where('date', '>=', startOfDay),
+          where('date', '<=', endOfDay)
+        );
         const attendanceSnapshot = await getDocs(q);
-        const presentUserIds = new Set(attendanceSnapshot.docs.map(doc => doc.data().userid));
+        const presentUserIds = new Set(attendanceSnapshot.docs.map(doc => doc.data().userId));
 
         const membersWithStatus = await Promise.all(usersList.map(async (user) => {
+
           const isPresent = presentUserIds.has(user.id);
           let membershipPlan = 'N/A';
           let remainingDays = 'N/A';
 
+          console.log('Processing user:', user.id, 'Membership Plan ID:', user.membershipPlanId, 'Membership End Date:', user.membershipEndDate);
           if (user.membershipPlanId) {
             const planDocRef = doc(db, COLLECTIONS.MEMBERSHIP_PLANS, user.membershipPlanId);
             const planDocSnap = await getDoc(planDocRef);
+            console.log('Membership Plan Doc Exists:', planDocSnap.exists(), 'for user:', user.id);
             if (planDocSnap.exists()) {
               const planData = planDocSnap.data();
               membershipPlan = planData.name;
@@ -41,6 +52,8 @@ const useAttendanceData = () => {
                 const diffTime = endDate.getTime() - todayDate.getTime();
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 remainingDays = diffDays > 0 ? diffDays : 0;
+              } else {
+                remainingDays = 'N/A'; // Explicitly set to N/A if membershipEndDate is missing
               }
             }
           }

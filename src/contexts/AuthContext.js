@@ -46,6 +46,10 @@ export function AuthProvider({ children }) {
           membershipStartDate: null,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
+          preferences: {
+            receiveEmails: true,
+            receiveSMS: true,
+          },
         });
       }
 
@@ -102,6 +106,7 @@ export function AuthProvider({ children }) {
   const value = {
     currentUser,
     userRole,
+    loading,
     signup,
     login,
     logout,

@@ -737,9 +737,14 @@ const Notifications = () => {
               </Box>
             </DialogTitle>
             <DialogContent>
-              <Typography variant="body1" paragraph>
+              <Typography variant="body1" paragraph sx={{ whiteSpace: 'pre-wrap' }}>
                 {notificationDetail.message}
               </Typography>
+              {notificationDetail.imageUrl && (
+                <Box sx={{ mt: 2, mb: 2, display: 'flex', justifyContent: 'center' }}>
+                  <img src={notificationDetail.imageUrl} alt="Notification" style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px' }} />
+                </Box>
+              )}
               
               <Divider sx={{ my: 2 }} />
               
@@ -749,7 +754,7 @@ const Notifications = () => {
                     Sent:
                   </Typography>
                   <Typography variant="body2">
-                    {format(notificationDetail.timestamp, 'PPpp')}
+                    {notificationDetail.timestamp && typeof notificationDetail.timestamp.toDate === 'function' ? format(notificationDetail.timestamp.toDate(), 'PPpp') : 'N/A'}
                   </Typography>
                 </Grid>
                 
@@ -761,7 +766,7 @@ const Notifications = () => {
                     {notificationDetail.read ? (
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <CheckCircle fontSize="small" color="success" sx={{ mr: 0.5 }} />
-                        Read {notificationDetail.readAt && `(${format(notificationDetail.readAt, 'PPpp')})`}
+                        Read {notificationDetail.readAt && typeof notificationDetail.readAt.toDate === 'function' && `(${format(notificationDetail.readAt.toDate(), 'PPpp')})`}
                       </Box>
                     ) : (
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>

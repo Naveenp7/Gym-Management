@@ -59,7 +59,9 @@ import {
   Send,
   People,
   Person,
-  Group
+  Group,
+  Image as ImageIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { 
   collection, 
@@ -76,8 +78,9 @@ import {
   onSnapshot,
   addDoc,
   serverTimestamp
-} from 'firebase/firestore';
-import { db } from '../../firebase';
+} from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../../firebase";
 import { useAuth } from '../../contexts/AuthContext';
 import AdminLayout from '../../components/layouts/AdminLayout';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -101,6 +104,9 @@ const Notifications = () => {
     message: '',
     severity: 'success'
   });
+  const [saving, setSaving] = useState(false);
+  const [notificationImage, setNotificationImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   
   // New notification form state
@@ -160,7 +166,7 @@ const Notifications = () => {
       if (unsubscribe) {
         unsubscribe();
       }
-    };
+    }
   }, [currentUser, autoRefresh]);
   
   // Filter notifications when tab changes
@@ -408,6 +414,20 @@ const Notifications = () => {
     
     handleMenuClose();
   };
+
+  // Handle image selection for new notification
+  const handleImageChange = (e) => {
+    if (e.target.files[0]) {
+      const file = e.target.files[0];
+      setNotificationImage(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const clearImage = () => {
+    setNotificationImage(null);
+    setImagePreview(null);
+  };
   
   // Handle new notification form change
   const handleNewNotificationChange = (e) => {
@@ -421,6 +441,10 @@ const Notifications = () => {
   // Create new notification
   const createNotification = async () => {
     try {
+      // DEBUG: Log the current user's UID to verify it's the correct admin user.
+      console.log("Attempting to create notification as user:", currentUser.uid);
+
+      setSaving(true);
       if (!newNotification.title || !newNotification.message) {
         setSnackbar({
           open: true,
@@ -447,6 +471,15 @@ const Notifications = () => {
         });
         return;
       }
+
+      // Upload image if one is selected
+      let imageUrl = null;
+      if (notificationImage) {
+        // Use a timestamp to ensure unique image names
+        const imageRef = ref(storage, `notification_images/${Date.now()}_${notificationImage.name}`);
+        await uploadBytes(imageRef, notificationImage);
+        imageUrl = await getDownloadURL(imageRef);
+      }
       
       // Create notifications for each recipient
       const batch = writeBatch(db);
@@ -465,8 +498,10 @@ const Notifications = () => {
           timestamp: serverTimestamp(),
           createdBy: currentUser.uid,
           createdByName: currentUser.displayName || 'Admin',
+          ...(imageUrl && { imageUrl }),
           // Set the recipient's name for display purposes in the admin list
-          userName: member ? member.displayName : 'Unknown Member'
+          userName: member ? member.displayName : 'Unknown Member',
+          imageUrl: imageUrl, // Add image URL to notification
         };
 
         const notificationRef = doc(collection(db, 'notifications'));
@@ -488,8 +523,9 @@ const Notifications = () => {
         type: 'announcement',
         priority: 'normal',
         recipients: 'all',
-        selectedMembers: []
+        selectedMembers: [],
       });
+      clearImage();
       
       setCreateDialogOpen(false);
     } catch (error) {
@@ -499,6 +535,8 @@ const Notifications = () => {
         message: 'Error creating notification: ' + error.message,
         severity: 'error'
       });
+    } finally {
+      setSaving(false);
     }
   };
   
@@ -846,9 +884,13 @@ const Notifications = () => {
               </Box>
             </DialogTitle>
             <DialogContent>
-              <Typography variant="body1" paragraph>
-                {notificationDetail.message}
-              </Typography>
+              <Grid item xs={12}>
+                <Box sx={{ mt: 2, whiteSpace: 'pre-wrap' }}>
+                  <Typography variant="body1">
+                    {notificationDetail.message}
+                  </Typography>
+                </Box>
+              </Grid>
               
               <Divider sx={{ my: 2 }} />
               
@@ -982,6 +1024,29 @@ const Notifications = () => {
                 rows={4}
                 required
               />
+            </Grid>
+
+            <Grid item xs={12}>
+              <input
+                accept="image/*"
+                style={{ display: 'none' }}
+                id="notification-image-upload"
+                type="file"
+                onChange={handleImageChange}
+              />
+              <label htmlFor="notification-image-upload">
+                <Button variant="outlined" component="span" startIcon={<ImageIcon />}>
+                  Upload Image
+                </Button>
+              </label>
+              {imagePreview && (
+                <Box sx={{ mt: 2, display: 'flex', alignItems: 'center' }}>
+                  <img src={imagePreview} alt="Notification Preview" style={{ maxWidth: '100%', maxHeight: '150px', marginRight: '10px' }} />
+                  <IconButton onClick={clearImage} color="error">
+                    <ClearIcon />
+                  </IconButton>
+                </Box>
+              )}
             </Grid>
             
             <Grid item xs={12} sm={6}>
@@ -1118,9 +1183,10 @@ const Notifications = () => {
             onClick={createNotification} 
             color="primary" 
             variant="contained"
-            startIcon={<Send />}
+            disabled={saving}
+            startIcon={saving ? <CircularProgress size={20} /> : <Send />}
           >
-            Send Notification
+            {saving ? 'Sending...' : 'Send Notification'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1141,6 +1207,6 @@ const Notifications = () => {
       </Snackbar>
     </AdminLayout>
   );
-};
+}
 
 export default Notifications;

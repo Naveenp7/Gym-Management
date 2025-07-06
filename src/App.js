@@ -35,7 +35,7 @@ import ContactUs from './pages/member/ContactUs';
 import ThankYou from './pages/member/ThankYou';
 
 // Context
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Create a theme
 const theme = createTheme({
@@ -66,44 +66,19 @@ const theme = createTheme({
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole }) => {
-  const [currentUser, setCurrentUser] = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
-  const [userRole, setUserRole] = React.useState(null);
-
-  React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        // Fetch user role from Firestore
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            setUserRole(userDoc.data().role);
-          } else {
-            setUserRole(null);
-          }
-        } catch (err) {
-          setUserRole(null);
-        }
-      } else {
-        setUserRole(null);
-      }
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
+  const { currentUser, userRole, loading } = useAuth();
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
   if (!currentUser) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
 
   if (requiredRole && userRole !== requiredRole) {
-    return <Navigate to={userRole === 'admin' ? '/admin/dashboard' : '/member/dashboard'} />;
+    // Redirect to the correct dashboard if role doesn't match
+    return <Navigate to={userRole === 'admin' ? '/admin/dashboard' : '/member/dashboard'} replace />;
   }
 
   return children;

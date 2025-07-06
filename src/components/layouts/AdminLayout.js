@@ -57,7 +57,7 @@ import NotificationMenu from '../common/NotificationMenu';
 const drawerWidth = 240;
 
 const AdminLayout = ({ children }) => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, userRole, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -314,6 +314,19 @@ const AdminLayout = ({ children }) => {
             Gym Management System - Admin Panel
           </Typography>
           
+          {/* --- DEBUGGING UI --- */}
+          {/* This box shows the currently logged-in user's ID and role. */}
+          {/* You can remove this once the permission issue is resolved. */}
+          <Box sx={{ mx: 2, p: 1, bgcolor: 'rgba(255,255,255,0.2)', borderRadius: 1, textAlign: 'center' }}>
+            <Typography variant="caption" sx={{ display: 'block', lineHeight: 1.2 }}>
+              UID: {currentUser?.uid || 'Not Logged In'}
+            </Typography>
+            <Typography variant="caption" sx={{ display: 'block', lineHeight: 1.2, fontWeight: 'bold' }}>
+              Role: {userRole || 'No Role'}
+            </Typography>
+          </Box>
+          {/* --- END DEBUGGING UI --- */}
+
           {/* Notifications */}
           <Box sx={{ flexGrow: 0, mr: 2 }}>
             <Tooltip title="Notifications">

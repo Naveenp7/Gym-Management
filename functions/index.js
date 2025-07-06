@@ -1,5 +1,6 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const {getAuth} = require("firebase-admin/auth");
 const nodemailer = require("nodemailer");
 
 admin.initializeApp();
@@ -60,13 +61,10 @@ exports.sendAttendanceEmail = functions.firestore
         }
 
         // 3. Check if the member has opted-in to receive emails
-        if (
-          !memberData ||
-        !memberData.preferences ||
-        memberData.preferences.receiveEmails === false
-        ) {
-          const msg = `User ${userId} has opted out of email notifications. Aborting.`;
-          console.log(msg);
+        // We only abort if the user has EXPLICITLY opted out.
+        // If the preference is not set, we assume they want to receive emails.
+        if (memberData?.preferences?.receiveEmails === false) {
+          console.log(`User ${userId} has opted out of email notifications. Aborting.`);
           return null;
         }
 
@@ -96,6 +94,91 @@ exports.sendAttendanceEmail = functions.firestore
       } catch (error) {
         console.error("Error sending attendance email:", error);
         return null;
+      }
+    });
+
+// Function to create a notification when a member's plan is updated or assigned.
+// This will then trigger sendCustomNotificationEmail to send the email.
+exports.createMembershipUpdateNotification = functions.firestore
+    .document("members/{memberId}")
+    .onWrite(async (change, context) => {
+      const beforeData = change.before.data();
+      const afterData = change.after.data();
+      const userId = context.params.memberId;
+
+      // Exit if the document was deleted or if membership expiry is not set.
+      if (!afterData || !afterData.membershipExpiry) {
+        console.log("No 'after' data or no membership expiry. Exiting.");
+        return null;
+      }
+
+      // Check if the membershipExpiry date or plan has actually changed.
+      const oldExpiry = beforeData ? beforeData.membershipExpiry : null;
+      const newExpiry = afterData.membershipExpiry;
+
+      if (oldExpiry && newExpiry && oldExpiry.isEqual(newExpiry) &&
+        beforeData.membershipPlan === afterData.membershipPlan) {
+        console.log("Membership expiry date has not changed. Exiting.");
+        return null;
+      }
+
+      try {
+        // Fetch user data to get their name for the notification message.
+        const userDoc = await admin.firestore()
+            .collection("users").doc(userId).get();
+        const userData = userDoc.data();
+
+        // Construct the notification message.
+        const notificationMessage = `Your membership plan has been updated to ${
+          afterData.membershipPlan
+        }. It is now valid until ${new Date(
+    afterData.membershipExpiry.toDate(),
+).toLocaleDateString()}.`;
+
+        // Create the in-app notification document.
+        await admin.firestore().collection("notifications").add({
+          title: "Membership Updated",
+          message: notificationMessage,
+          userId: userId,
+          type: "membership",
+          category: "membership",
+          priority: "normal",
+          read: false,
+          adminView: true, // So admin can see this was sent
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          createdBy: "System",
+          createdByName: "System Automation",
+          userName: userData ? (userData.firstName || "Member") : "Member",
+        });
+
+        console.log("Membership update notification created for:", userId);
+        return null;
+      } catch (error) {
+        console.error("Error creating membership update notification:", error);
+        return null;
+      }
+    });
+
+// Sets a custom 'role' claim on a user when their document in the 'users'
+// collection is created or updated.
+exports.setUserRole = functions.firestore
+    .document("users/{userId}")
+    .onWrite(async (change, context) => {
+      const userData = change.after.data();
+      const userId = context.params.userId;
+
+      // Check if the role field exists and has a value
+      if (userData && userData.role) {
+        try {
+          // Set custom claims for the user
+          await getAuth().setCustomUserClaims(userId, {role: userData.role});
+          console.log(
+              `Custom claim 'role: ${userData.role}' set for user ${userId}`,
+          );
+        } catch (error) {
+          console.error(
+              `Error setting custom claim for user ${userId}:`, error);
+        }
       }
     });
     
@@ -145,14 +228,10 @@ exports.sendCustomNotificationEmail = functions.firestore
         }
 
         // 3. Check if the member has opted-in to receive emails
-        if (
-          !memberData ||
-        !memberData.preferences ||
-        memberData.preferences.receiveEmails === false
-        ) {
-          console.log(
-              `User ${userId} has opted out of email notifications. Aborting.`,
-          );
+        // We only abort if the user has EXPLICITLY opted out.
+        // If the preference is not set, we assume they want to receive emails.
+        if (memberData?.preferences?.receiveEmails === false) {
+          console.log(`User ${userId} has opted out of email notifications. Aborting.`);
           return null;
         }
 
@@ -177,6 +256,7 @@ exports.sendCustomNotificationEmail = functions.firestore
               >
                 <h3 style="margin: 0;">${notificationData.title}</h3>
                 <p>${notificationData.message}</p>
+                ${notificationData.imageUrl ? `<img src="${notificationData.imageUrl}" alt="Notification Image" style="max-width: 100%; height: auto; display: block; margin-top: 10px; border-radius: 8px;"/>` : ''}
               </div>
               <p>
                 You can view this and other notifications by logging into 

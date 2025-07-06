@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { calculateDaysRemaining } from '../../utils/dateUtils';
 import {
   Container,
   Grid,
@@ -379,32 +380,8 @@ const Profile = () => {
   };
 
   // Calculate days remaining in membership
-  const calculateDaysRemaining = () => {
-    if (!profileData || !profileData.membershipEndDate) return 0;
-
-    try {
-      const endDate = profileData.membershipEndDate.toDate ?
-        profileData.membershipEndDate.toDate() :
-        new Date(profileData.membershipEndDate);
-
-      // Check if endDate is a valid date
-      if (isNaN(endDate.getTime())) {
-        console.warn('Invalid membershipEndDate:', profileData.membershipEndDate);
-        return 0;
-      }
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Reset time to start of day
-
-      const diffTime = endDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      return diffDays > 0 ? diffDays : 0;
-    } catch (error) {
-      console.error('Error calculating days remaining:', error);
-      return 0;
-    }
-  };
+  // The call is now simplified and uses the utility function
+  const daysRemaining = calculateDaysRemaining(profileData?.membershipExpiry);
 
   return (
     <MemberLayout>
@@ -505,9 +482,9 @@ const Profile = () => {
                       <Typography 
                         variant="body2" 
                         fontWeight="medium"
-                        color={calculateDaysRemaining() < 7 ? 'error.main' : 'inherit'}
+                        color={daysRemaining < 7 ? 'error.main' : 'inherit'}
                       >
-                        {calculateDaysRemaining()}
+                        {daysRemaining}
                       </Typography>
                     </Grid>
                   </Grid>

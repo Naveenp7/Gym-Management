@@ -31,6 +31,7 @@ import { collection, query, where, getDocs, orderBy, limit, Timestamp, doc, getD
 import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import MemberLayout from '../../components/layouts/MemberLayout';
+import { calculateDaysRemaining } from '../../utils/dateUtils';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -176,18 +177,6 @@ const MemberDashboard = () => {
     });
   };
 
-  // Calculate days remaining in membership
-  const calculateDaysRemaining = () => {
-    if (!memberData || !memberData.membershipExpiry) return 0;
-    
-    const expiryDate = new Date(memberData.membershipExpiry);
-    const today = new Date();
-    const diffTime = expiryDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    return diffDays > 0 ? diffDays : 0;
-  };
-
   // Prepare attendance chart data
   const prepareAttendanceChartData = () => {
     // Get last 14 days
@@ -247,7 +236,7 @@ const MemberDashboard = () => {
   };
   const expiryDate = getExpiryDate();
 
-  const daysRemaining = calculateDaysRemaining();
+  const daysRemaining = calculateDaysRemaining(memberData?.membershipExpiry);
   const membershipStatus = memberData?.membershipStatus === 'active' ? 'Active' : 'Expired';
   const statusColor = memberData?.membershipStatus === 'active' ? 'success' : 'error';
 

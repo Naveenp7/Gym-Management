@@ -30,6 +30,7 @@ import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore
 import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import AdminLayout from '../../components/layouts/AdminLayout';
+import StatCard from '../../components/dashboard/StatCard';
 import { Bar, Pie } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -256,110 +257,34 @@ const AdminDashboard = () => {
         
         {/* Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                height: 140,
-                bgcolor: 'primary.light',
-                color: 'white'
-              }}
-              elevation={3}
-            >
-              <Typography component="h2" variant="h6" gutterBottom>
-                Total Members
-              </Typography>
-              <Typography component="p" variant="h3">
-                {stats.totalMembers}
-              </Typography>
-              <Box sx={{ mt: 'auto', display: 'flex', alignItems: 'center' }}>
-                <PeopleOutline />
-                <Typography variant="body2" sx={{ ml: 1 }}>
-                  All registered members
-                </Typography>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                height: 140,
-                bgcolor: 'success.light',
-                color: 'white'
-              }}
-              elevation={3}
-            >
-              <Typography component="h2" variant="h6" gutterBottom>
-                Active Members
-              </Typography>
-              <Typography component="p" variant="h3">
-                {stats.activeMembers}
-              </Typography>
-              <Box sx={{ mt: 'auto', display: 'flex', alignItems: 'center' }}>
-                <CheckCircleOutline />
-                <Typography variant="body2" sx={{ ml: 1 }}>
-                  Members with active membership
-                </Typography>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                height: 140,
-                bgcolor: 'warning.light',
-                color: 'white'
-              }}
-              elevation={3}
-            >
-              <Typography component="h2" variant="h6" gutterBottom>
-                Expiring Soon
-              </Typography>
-              <Typography component="p" variant="h3">
-                {stats.expiringMembers}
-              </Typography>
-              <Box sx={{ mt: 'auto', display: 'flex', alignItems: 'center' }}>
-                <Warning />
-                <Typography variant="body2" sx={{ ml: 1 }}>
-                  Memberships expiring in 7 days
-                </Typography>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                height: 140,
-                bgcolor: 'info.light',
-                color: 'white'
-              }}
-              elevation={3}
-            >
-              <Typography component="h2" variant="h6" gutterBottom>
-                Today's Attendance
-              </Typography>
-              <Typography component="p" variant="h3">
-                {stats.todayAttendance}
-              </Typography>
-              <Box sx={{ mt: 'auto', display: 'flex', alignItems: 'center' }}>
-                <TrendingUp />
-                <Typography variant="body2" sx={{ ml: 1 }}>
-                  Members checked in today
-                </Typography>
-              </Box>
-            </Paper>
-          </Grid>
+          <StatCard
+            title="Total Members"
+            value={stats.totalMembers}
+            icon={<PeopleOutline />}
+            description="All registered members"
+            color="primary.light"
+          />
+          <StatCard
+            title="Active Members"
+            value={stats.activeMembers}
+            icon={<CheckCircleOutline />}
+            description="Members with active membership"
+            color="success.light"
+          />
+          <StatCard
+            title="Expiring Soon"
+            value={stats.expiringMembers}
+            icon={<Warning />}
+            description="Memberships expiring in 7 days"
+            color="warning.light"
+          />
+          <StatCard
+            title="Today's Attendance"
+            value={stats.todayAttendance}
+            icon={<TrendingUp />}
+            description="Members checked in today"
+            color="info.light"
+          />
         </Grid>
         
         {/* Charts */}

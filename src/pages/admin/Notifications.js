@@ -203,26 +203,28 @@ const Notifications = () => {
   
   // Fetch members for notification creation
   const fetchMembers = async () => {
-    try {
-      const membersQuery = query(
-        collection(db, 'users'),
-        where('role', '==', 'member'),
-        orderBy('displayName', 'asc')
-      );
-      
-      const membersSnapshot = await getDocs(membersQuery);
-      
-      const membersList = membersSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      setMembers(membersList);
-      console.log("Fetched members:", membersList);
-    } catch (error) {
-      console.error('Error fetching members:', error);
-    }
-  };
+     try {
+       // Query the 'members' collection which is the source of truth for member data.
+       const membersQuery = query(
+         collection(db, 'members'),
+         orderBy('name', 'asc')
+       );
+       
+       const membersSnapshot = await getDocs(membersQuery);
+       
+       const membersList = membersSnapshot.docs.map(doc => ({
+         id: doc.id,
+         ...doc.data(),
+         // Add a 'displayName' field for the dropdown component to use.
+         displayName: doc.data().name || doc.data().email
+       }));
+       
+       setMembers(membersList);
+     } catch (error) {
+       console.error('Error fetching members:', error);
+       setSnackbar({ open: true, message: 'Could not load member list for notifications.', severity: 'warning' });
+     }
+   };
   
   // Filter notifications based on selected tab
   const filterNotifications = () => {
@@ -446,30 +448,31 @@ const Notifications = () => {
         return;
       }
       
-      console.log("New Notification object before sending:", newNotification);
       // Create notifications for each recipient
       const batch = writeBatch(db);
 
       for (const userId of recipientIds) {
+        const member = members.find(m => m.id === userId); // Find the member details
         const notificationData = {
           title: newNotification.title,
           message: newNotification.message,
           type: newNotification.type,
           category: newNotification.type, // For backward compatibility
           priority: newNotification.priority,
-          userId,
+          userId: userId,
           adminView: true, // For admin to see in their list
           read: false,
           timestamp: serverTimestamp(),
           createdBy: currentUser.uid,
-          createdByName: currentUser.displayName || 'Admin'
+          createdByName: currentUser.displayName || 'Admin',
+          // Set the recipient's name for display purposes in the admin list
+          userName: member ? member.displayName : 'Unknown Member'
         };
 
         const notificationRef = doc(collection(db, 'notifications'));
         batch.set(notificationRef, notificationData);
       }
 
-      console.log("Batch operations prepared:", batch);
       await batch.commit();
       
       setSnackbar({
@@ -681,6 +684,7 @@ const Notifications = () => {
                     </ListItemAvatar>
                     
                     <ListItemText
+                      secondaryTypographyProps={{ component: 'div' }}
                       primary={
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           <Typography

@@ -48,7 +48,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { collection, query, where, getDocs, orderBy, limit, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { formatDistanceToNow } from 'date-fns';
+import NotificationMenu from '../common/NotificationMenu';
 
 // Drawer width
 const drawerWidth = 240;
@@ -157,15 +157,6 @@ const MemberLayout = ({ children }) => {
   // Check if a route is active
   const isActive = (path) => {
     return location.pathname === path;
-  };
-  
-  // Format timestamp for notifications
-  const formatTimestamp = (date) => {
-    if (!date || !(date instanceof Date)) {
-      return '';
-    }
-    // e.g., "about 5 hours ago"
-    return formatDistanceToNow(date, { addSuffix: true });
   };
   
   // Main menu items
@@ -308,75 +299,20 @@ const MemberLayout = ({ children }) => {
                 </Badge>
               </IconButton>
             </Tooltip>
-            <Menu
-              sx={{ mt: '45px' }}
-              id="notifications-menu"
+            <NotificationMenu
               anchorEl={anchorElNotifications}
-              anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
               open={Boolean(anchorElNotifications)}
               onClose={handleCloseNotificationsMenu}
-            >
-              <Box sx={{ width: 320, maxHeight: 400, overflow: 'auto', p: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="h6">Notifications</Typography>
-                  <Button 
-                    size="small" 
-                    onClick={() => {
-                      handleCloseNotificationsMenu();
-                      navigate('/member/notifications');
-                    }}
-                  >
-                    View All
-                  </Button>
-                </Box>
-                <Divider sx={{ mb: 1 }} />
-                {notifications.length > 0 ? (
-                  notifications.slice(0, 5).map((notification) => (
-                    <MenuItem 
-                      key={notification.id} 
-                      onClick={() => {
-                        handleCloseNotificationsMenu();
-                        navigate('/member/notifications');
-                      }}
-                      sx={{ 
-                        whiteSpace: 'normal', 
-                        py: 1,
-                        borderLeft: notification.read ? 'none' : `4px solid ${theme.palette.primary.main}`,
-                        bgcolor: notification.read ? 'inherit' : 'action.hover'
-                      }}
-                    >
-                      <Box sx={{ width: '100%' }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: notification.read ? 'normal' : 'bold' }}>
-                          {notification.title}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                          {notification.message && notification.message.length > 60
-                            ? `${notification.message.substring(0, 60)}...`
-                            : notification.message}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                          {formatTimestamp(notification.timestamp)}
-                        </Typography>
-                      </Box>
-                    </MenuItem>
-                  ))
-                ) : (
-                  <Box sx={{ p: 2, textAlign: 'center' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      No notifications
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Menu>
+              notifications={notifications}
+              onViewAll={() => {
+                handleCloseNotificationsMenu();
+                navigate('/member/notifications');
+              }}
+              onNotificationClick={() => {
+                handleCloseNotificationsMenu();
+                navigate('/member/notifications');
+              }}
+            />
           </Box>
           
           {/* User Menu */}

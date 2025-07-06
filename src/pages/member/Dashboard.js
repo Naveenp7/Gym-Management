@@ -31,6 +31,7 @@ import { collection, query, where, getDocs, orderBy, limit, Timestamp, doc, getD
 import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import MemberLayout from '../../components/layouts/MemberLayout';
+import StatCard from '../../components/dashboard/StatCard';
 import { calculateDaysRemaining } from '../../utils/dateUtils';
 import { Line } from 'react-chartjs-2';
 import {
@@ -298,110 +299,34 @@ const MemberDashboard = () => {
         
         {/* Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                height: 140,
-                bgcolor: 'primary.light',
-                color: 'white'
-              }}
-              elevation={3}
-            >
-              <Typography component="h2" variant="h6" gutterBottom>
-                This Week
-              </Typography>
-              <Typography component="p" variant="h3">
-                {attendanceStats.thisWeek}
-              </Typography>
-              <Box sx={{ mt: 'auto', display: 'flex', alignItems: 'center' }}>
-                <Today />
-                <Typography variant="body2" sx={{ ml: 1 }}>
-                  Visits this week
-                </Typography>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                height: 140,
-                bgcolor: 'info.light',
-                color: 'white'
-              }}
-              elevation={3}
-            >
-              <Typography component="h2" variant="h6" gutterBottom>
-                Last Week
-              </Typography>
-              <Typography component="p" variant="h3">
-                {attendanceStats.lastWeek}
-              </Typography>
-              <Box sx={{ mt: 'auto', display: 'flex', alignItems: 'center' }}>
-                <CalendarToday />
-                <Typography variant="body2" sx={{ ml: 1 }}>
-                  Visits last week
-                </Typography>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                height: 140,
-                bgcolor: 'success.light',
-                color: 'white'
-              }}
-              elevation={3}
-            >
-              <Typography component="h2" variant="h6" gutterBottom>
-                This Month
-              </Typography>
-              <Typography component="p" variant="h3">
-                {attendanceStats.thisMonth}
-              </Typography>
-              <Box sx={{ mt: 'auto', display: 'flex', alignItems: 'center' }}>
-                <CheckCircleOutline />
-                <Typography variant="body2" sx={{ ml: 1 }}>
-                  Total monthly visits
-                </Typography>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                height: 140,
-                bgcolor: 'warning.light',
-                color: 'white'
-              }}
-              elevation={3}
-            >
-              <Typography component="h2" variant="h6" gutterBottom>
-                Current Streak
-              </Typography>
-              <Typography component="p" variant="h3">
-                {attendanceStats.streak}
-              </Typography>
-              <Box sx={{ mt: 'auto', display: 'flex', alignItems: 'center' }}>
-                <FitnessCenter />
-                <Typography variant="body2" sx={{ ml: 1 }}>
-                  Consecutive days
-                </Typography>
-              </Box>
-            </Paper>
-          </Grid>
+          <StatCard
+            title="This Week"
+            value={attendanceStats.thisWeek}
+            icon={<Today />}
+            description="Visits this week"
+            color="primary.light"
+          />
+          <StatCard
+            title="Last Week"
+            value={attendanceStats.lastWeek}
+            icon={<CalendarToday />}
+            description="Visits last week"
+            color="info.light"
+          />
+          <StatCard
+            title="This Month"
+            value={attendanceStats.thisMonth}
+            icon={<CheckCircleOutline />}
+            description="Total monthly visits"
+            color="success.light"
+          />
+          <StatCard
+            title="Current Streak"
+            value={attendanceStats.streak}
+            icon={<FitnessCenter />}
+            description="Consecutive days"
+            color="warning.light"
+          />
         </Grid>
         
         {/* Attendance Chart */}

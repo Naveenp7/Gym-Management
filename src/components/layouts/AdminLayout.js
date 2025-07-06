@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -49,8 +49,10 @@ import {
   Email as EmailIcon,
   Payments as PaymentsIcon
 } from '@mui/icons-material';
+import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
-
+import { db } from '../../firebase';
+import { formatDistanceToNow } from 'date-fns';
 // Drawer width
 const drawerWidth = 240;
 
@@ -65,12 +67,39 @@ const AdminLayout = ({ children }) => {
   const [open, setOpen] = useState(!isMobile);
   const [anchorElUser, setAnchorElUser] = useState(null);
   const [anchorElNotifications, setAnchorElNotifications] = useState(null);
+  const [notifications, setNotifications] = useState([]);
   const [menuExpanded, setMenuExpanded] = useState({
     members: false,
     memberships: false,
     reports: false
   });
   
+  // Fetch notifications in real-time
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Set up real-time listener for notifications
+    const notificationsQuery = query(
+      collection(db, 'notifications'),
+      where('adminView', '==', true), // Fetch notifications intended for admins
+      orderBy('timestamp', 'desc'),
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
+      const notificationsList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate() || new Date()
+      }));
+      setNotifications(notificationsList);
+    }, (error) => {
+      console.error('Error fetching notifications:', error);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
   // Handle drawer open/close
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -119,6 +148,15 @@ const AdminLayout = ({ children }) => {
   // Check if a route is active
   const isActive = (path) => {
     return location.pathname === path;
+  };
+
+  // Format timestamp for notifications
+  const formatTimestamp = (date) => {
+    if (!date || !(date instanceof Date)) {
+      return '';
+    }
+    // e.g., "about 5 hours ago"
+    return formatDistanceToNow(date, { addSuffix: true });
   };
   
   // Main menu items
@@ -239,31 +277,6 @@ const AdminLayout = ({ children }) => {
     }
   ];
   
-  // Mock notifications
-  const notifications = [
-    {
-      id: 1,
-      title: 'New Member Registration',
-      message: 'John Doe has registered as a new member.',
-      time: '5 minutes ago',
-      read: false
-    },
-    {
-      id: 2,
-      title: 'Membership Expiring',
-      message: '5 memberships are expiring this week.',
-      time: '1 hour ago',
-      read: false
-    },
-    {
-      id: 3,
-      title: 'Payment Received',
-      message: 'Payment of $99 received from Jane Smith.',
-      time: '3 hours ago',
-      read: true
-    }
-  ];
-  
   const unreadNotifications = notifications.filter(notification => !notification.read).length;
   
   return (
@@ -338,11 +351,19 @@ const AdminLayout = ({ children }) => {
               <Box sx={{ width: 320, maxHeight: 400, overflow: 'auto', p: 1 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                   <Typography variant="h6">Notifications</Typography>
-                  <Button size="small" onClick={handleCloseNotificationsMenu}>View All</Button>
+                  <Button 
+                    size="small" 
+                    onClick={() => {
+                      handleCloseNotificationsMenu();
+                      navigate('/admin/notifications');
+                    }}
+                  >
+                    View All
+                  </Button>
                 </Box>
                 <Divider sx={{ mb: 1 }} />
                 {notifications.length > 0 ? (
-                  notifications.map((notification) => (
+                  notifications.slice(0, 5).map((notification) => (
                     <MenuItem 
                       key={notification.id} 
                       onClick={handleCloseNotificationsMenu}
@@ -361,7 +382,7 @@ const AdminLayout = ({ children }) => {
                           {notification.message}
                         </Typography>
                         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                          {notification.time}
+                          {formatTimestamp(notification.timestamp)}
                         </Typography>
                       </Box>
                     </MenuItem>

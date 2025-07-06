@@ -48,6 +48,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { collection, query, where, getDocs, orderBy, limit, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { formatDistanceToNow } from 'date-fns';
 
 // Drawer width
 const drawerWidth = 240;
@@ -161,35 +162,12 @@ const MemberLayout = ({ children }) => {
   };
   
   // Format timestamp for notifications
-  const formatTimestamp = (timestamp) => {
-    const now = new Date();
-    const diff = now - timestamp;
-    
-    // Less than a minute
-    if (diff < 60000) {
-      return 'Just now';
+  const formatTimestamp = (date) => {
+    if (!date || !(date instanceof Date)) {
+      return '';
     }
-    
-    // Less than an hour
-    if (diff < 3600000) {
-      const minutes = Math.floor(diff / 60000);
-      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-    }
-    
-    // Less than a day
-    if (diff < 86400000) {
-      const hours = Math.floor(diff / 3600000);
-      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    }
-    
-    // Less than a week
-    if (diff < 604800000) {
-      const days = Math.floor(diff / 86400000);
-      return `${days} day${days > 1 ? 's' : ''} ago`;
-    }
-    
-    // Format as date
-    return timestamp.toLocaleDateString();
+    // e.g., "about 5 hours ago"
+    return formatDistanceToNow(date, { addSuffix: true });
   };
   
   // Main menu items

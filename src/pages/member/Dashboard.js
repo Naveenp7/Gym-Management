@@ -463,7 +463,7 @@ const MemberDashboard = () => {
                   variant="contained" 
                   color="primary" 
                   fullWidth
-                  href="/member/scan-qr"
+                  href="/member/qr-scanner"
                 >
                   Scan Now
                 </Button>

@@ -102,25 +102,9 @@ const AttendanceHistory = () => {
   // Fetch attendance data when component mounts or date range changes
   useEffect(() => {
     if (currentUser) {
-      fetchAttendanceData();
-    }
-  }, [currentUser, dateRange, startDate, endDate]);
-
-  // Apply filters when attendance data or filters change
-  useEffect(() => {
-    applyFilters();
-    calculateStats();
-  }, [attendanceData, filters]);
-
-  // Fetch attendance data from Firestore
-  const fetchAttendanceData = async () => {
-    try {
-      setLoading(true);
-      
-      // Determine date range
       let start, end;
       const today = new Date();
-      
+
       switch (dateRange) {
         case 'week':
           start = startOfWeek(today);
@@ -150,44 +134,49 @@ const AttendanceHistory = () => {
           start = subDays(today, 30);
           end = today;
       }
+
+      fetchAttendanceData(start, end);
+    }
+  }, [currentUser, dateRange, startDate, endDate]);
+
+  // Apply filters when attendance data or filters change
+  useEffect(() => {
+    applyFilters();
+    calculateStats();
+  }, [attendanceData, filters]);
+
+  // Fetch attendance data from Firestore
+  const fetchAttendanceData = async (start, end) => {
+    if (!start || !end || start > end) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
       
-      // Create Firestore query
+      // A simpler query that only filters by user. This is more robust against
+      // missing composite indexes. Date filtering will be done on the client.
       const attendanceQuery = query(
         collection(db, 'attendance'),
-        where('userId', '==', currentUser.uid),
-        where('date', '>=', Timestamp.fromDate(startOfDay(start))),
-        where('date', '<=', Timestamp.fromDate(endOfDay(end))),
-        orderBy('date', 'desc')
+        where('userId', '==', currentUser.uid)
       );
       
       // Execute query
       const attendanceSnapshot = await getDocs(attendanceQuery);
       
       // Process attendance data
-      const attendanceList = attendanceSnapshot.docs.map(doc => {
-        const data = doc.data();
-        let dateObj = null;
-        // Check if data.date exists and is a Firestore Timestamp with toDate() method
-        if (data.date) {
-          if (typeof data.date.toDate === 'function') {
-            dateObj = data.date.toDate();
-          } else {
-            // Attempt to create a Date object from other potential formats
-            const parsedDate = new Date(data.date);
-            if (!isNaN(parsedDate.getTime())) { // Check if it's a valid date
-              dateObj = parsedDate;
-            }
-          }
-        }
-        
-        return {
-          id: doc.id,
-          date: dateObj, // Store the Date object or null
-          location: data.location,
-          qrCodeId: data.qrCodeId,
-          ...data
-        };
-      }).filter(item => item.date instanceof Date && !isNaN(item.date.getTime())); // Ensure it's a Date object and valid
+      const allUserAttendance = attendanceSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        // Ensure 'date' is a JS Date object
+        date: doc.data().date?.toDate ? doc.data().date.toDate() : new Date(doc.data().date)
+      })).filter(item => item.date instanceof Date && !isNaN(item.date.getTime())); // Filter out invalid dates
+
+      // Filter by the selected date range on the client and sort
+      const attendanceList = allUserAttendance
+        .filter(item => isWithinInterval(item.date, { start: startOfDay(start), end: endOfDay(end) }))
+        .sort((a, b) => b.date - a.date);
       
       setAttendanceData(attendanceList);
       setFilteredData(attendanceList);
@@ -260,23 +249,29 @@ const AttendanceHistory = () => {
     
     // Calculate attendance streak
     let streak = 0;
-    let currentDate = today;
-    let foundGap = false;
-    
-    // Get all attendance dates and format them to YYYY-MM-DD for comparison
-    const attendanceDates = attendanceData.map(item => 
-      format(item.date, 'yyyy-MM-dd')
-    );
-    
-    // Check for consecutive days, going backwards from today
-    while (!foundGap && streak < 365) { // Cap at 365 days to prevent infinite loop
-      const dateString = format(currentDate, 'yyyy-MM-dd');
-      
-      if (attendanceDates.includes(dateString)) {
-        streak++;
-        currentDate = subDays(currentDate, 1);
-      } else {
-        foundGap = true;
+    if (attendanceData.length > 0) {
+      const uniqueDateStrings = [
+        ...new Set(attendanceData.map(item => format(item.date, 'yyyy-MM-dd')))
+      ].sort((a, b) => new Date(b) - new Date(a));
+
+      const todayString = format(today, 'yyyy-MM-dd');
+      const yesterdayString = format(subDays(today, 1), 'yyyy-MM-dd');
+
+      // Check if the most recent attendance was today or yesterday to start the streak
+      if (uniqueDateStrings[0] === todayString || uniqueDateStrings[0] === yesterdayString) {
+        streak = 1;
+        let lastDate = new Date(uniqueDateStrings[0]);
+        for (let i = 1; i < uniqueDateStrings.length; i++) {
+          const currentDate = new Date(uniqueDateStrings[i]);
+          const expectedDate = subDays(lastDate, 1);
+          
+          if (format(currentDate, 'yyyy-MM-dd') === format(expectedDate, 'yyyy-MM-dd')) {
+            streak++;
+            lastDate = currentDate;
+          } else {
+            break; // Gap found, streak ends
+          }
+        }
       }
     }
     

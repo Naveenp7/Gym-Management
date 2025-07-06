@@ -19,8 +19,6 @@ import {
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "../firebase";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -36,7 +34,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signup, signInWithEmailAndPassword } = useAuth();
+  const { signup } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -77,67 +75,30 @@ const Register = () => {
       setError('');
       setLoading(true);
       
-      // Prepare user data
+      // Prepare user data to be passed to the signup function
       const userData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         phone: formData.phone,
-        createdAt: new Date().toISOString(),
-        // For members, add additional fields
-        ...(formData.role === 'member' && {
-          membershipStatus: 'inactive',
-          membershipExpiry: null,
-          attendanceHistory: []
-        })
       };
       
-      // Create user in Firebase
-      const userCredential = await signup(formData.email, formData.password, formData.role, userData);
-      if (!userCredential || !userCredential.user) {
-        setError('Failed to create an account. Please try again.');
-        setLoading(false);
-        return;
-      }
-      const user = userCredential.user;
-      
-      // Set additional user data in Firestore
-      if (formData.role === "member") {
-        await setDoc(doc(db, "members", user.uid), {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          membershipStatus: "inactive",
-          membershipExpiry: null,
-        });
-        // Also create a user document for consistency with admin workflow
-        await setDoc(doc(db, "users", user.uid), {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          role: "member",
-          createdAt: new Date().toISOString(),
-        });
-      }
+      // The signup function now handles creating user records in 'users' and 'members' collections.
+      // It also logs the user in automatically.
+      await signup(formData.email, formData.password, formData.role, userData);
       
       // Redirect based on role
-      if (formData.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
-        // Automatically sign in the user after registration
-        try {
-          await signInWithEmailAndPassword(formData.email, formData.password);
-        } catch (err) {
-          setError('Account created, but automatic login failed. Please log in manually.');
-          setLoading(false);
-          return;
-        }
-        
-      }
+      const redirectPath = formData.role === 'admin' ? '/admin/dashboard' : '/member/dashboard';
+      navigate(redirectPath);
+
     } catch (error) {
       console.error('Registration error:', error);
-      setError('Failed to create an account. ' + error.message);
+      if (error.code === 'auth/email-already-in-use') {
+        setError('This email address is already in use. Please use a different email or log in.');
+      } else if (error.code === 'auth/weak-password') {
+        setError('The password is too weak. Please use a stronger password.');
+      } else {
+        setError('Failed to create an account. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

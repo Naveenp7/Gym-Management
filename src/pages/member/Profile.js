@@ -48,7 +48,7 @@ import MemberLayout from '../../components/layouts/MemberLayout';
 import { format } from 'date-fns';
 
 const Profile = () => {
-  const { currentUser, reloadUser } = useAuth();
+  const { currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -273,8 +273,10 @@ const Profile = () => {
       // Update profile in Firestore
       await updateDoc(doc(db, 'members', currentUser.uid), profileUpdateData);
       
-      // Reload user to get updated data
-      await reloadUser();
+      // Reload user to get updated data from Firebase Auth (e.g., new email)
+      if (currentUser) {
+        await currentUser.reload();
+      }
       
       setSnackbar({
         open: true,

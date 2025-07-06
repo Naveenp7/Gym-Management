@@ -6,7 +6,7 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 const AuthContext = createContext();
@@ -28,12 +28,27 @@ export function AuthProvider({ children }) {
       
       // Add user data to Firestore
       await setDoc(doc(db, 'users', user.uid), {
-        email: email,
+        ...userData, // Contains firstName, lastName, phone
+        email: user.email,
         role: role,
-        createdAt: new Date().toISOString(),
-        ...userData
+        createdAt: Timestamp.now(),
       });
       
+      // If the new user is a member, also create a document in the 'members' collection
+      if (role === 'member') {
+        await setDoc(doc(db, 'members', user.uid), {
+          ...userData, // Contains firstName, lastName, phone
+          email: user.email,
+          role: 'member',
+          name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+          membershipStatus: 'inactive',
+          membershipExpiry: null,
+          membershipStartDate: null,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        });
+      }
+
       // Return the full userCredential object for downstream use
       return userCredential;
     } catch (error) {

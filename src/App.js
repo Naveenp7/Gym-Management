@@ -30,6 +30,9 @@ import QRScanner from './pages/member/QRScanner';
 import Profile from './pages/member/Profile';
 import AttendanceHistory from './pages/member/AttendanceHistory';
 import MemberNotifications from './pages/member/Notifications';
+import HelpAndSupport from './pages/member/HelpAndSupport';
+import ContactUs from './pages/member/ContactUs';
+import ThankYou from './pages/member/ThankYou';
 
 // Context
 import { AuthProvider } from './contexts/AuthContext';
@@ -198,6 +201,30 @@ function App() {
             element={
               <ProtectedRoute requiredRole="member">
                 <QRScanner />
+              </ProtectedRoute>
+            }
+          />
+          <Route 
+            path="/member/help-support" 
+            element={
+              <ProtectedRoute requiredRole="member">
+                <HelpAndSupport />
+              </ProtectedRoute>
+            }
+          />
+          <Route 
+            path="/member/contact-us" 
+            element={
+              <ProtectedRoute requiredRole="member">
+                <ContactUs />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/member/thank-you" 
+            element={
+              <ProtectedRoute requiredRole="member">
+                <ThankYou />
               </ProtectedRoute>
             } 
           />

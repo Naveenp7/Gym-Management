@@ -72,25 +72,20 @@ const MemberLayout = ({ children }) => {
   useEffect(() => {
     if (!currentUser) return;
     
-    const fetchMemberData = async () => {
-      try {
-        // Fetch member data directly from the 'members' collection using the user's UID
-        // This is more efficient and aligns with the security rules.
-        const memberDocRef = doc(db, 'members', currentUser.uid);
-        const memberDoc = await getDoc(memberDocRef);
-        
-        if (memberDoc.exists()) {
-          setMemberData({
-            id: memberDoc.id,
-            ...memberDoc.data()
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching member data:', error);
-      } finally {
-        setLoading(false);
+    // Set up a real-time listener for the member's data to ensure UI is always up-to-date
+    const memberDocRef = doc(db, 'members', currentUser.uid);
+    const memberUnsubscribe = onSnapshot(memberDocRef, (doc) => {
+      if (doc.exists()) {
+        setMemberData({
+          id: doc.id,
+          ...doc.data()
+        });
       }
-    };
+      setLoading(false);
+    }, (error) => {
+      console.error('Error fetching member data in real-time:', error);
+      setLoading(false);
+    });
     
     // Set up real-time listener for notifications
     const notificationsQuery = query(
@@ -100,21 +95,26 @@ const MemberLayout = ({ children }) => {
       limit(10)
     );
     
-    const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
-      const notificationsList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate() || new Date()
-      }));
-      
-      setNotifications(notificationsList);
+    const notificationsUnsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
+      try {
+        const notificationsList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          timestamp: doc.data().timestamp?.toDate() || new Date()
+        }));
+        setNotifications(notificationsList);
+      } catch (error) {
+        console.error('Error processing notifications snapshot:', error);
+      }
     }, (error) => {
       console.error('Error fetching notifications:', error);
     });
     
-    fetchMemberData();
-    
-    return () => unsubscribe();
+    // Cleanup listeners on unmount
+    return () => {
+      memberUnsubscribe();
+      notificationsUnsubscribe();
+    };
   }, [currentUser]);
   
   // Handle drawer open/close
@@ -225,14 +225,14 @@ const MemberLayout = ({ children }) => {
     {
       text: 'Help & Support',
       icon: <HelpIcon />,
-      path: '/member/help',
-      active: isActive('/member/help')
+      path: '/member/help-support',
+      active: isActive('/member/help-support')
     },
     {
       text: 'Contact Us',
       icon: <MessageIcon />,
-      path: '/member/contact',
-      active: isActive('/member/contact')
+      path: '/member/contact-us',
+      active: isActive('/member/contact-us')
     },
     {
       text: 'Back to Home',
@@ -384,8 +384,8 @@ const MemberLayout = ({ children }) => {
             <Tooltip title="Open settings">
               <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                 <Avatar 
-                  alt={currentUser?.displayName || 'Member'} 
-                  src={currentUser?.photoURL || memberData?.photoURL} 
+                  alt={memberData?.name || currentUser?.displayName || 'Member'} 
+                  src={memberData?.profileImageUrl || currentUser?.photoURL} 
                 />
               </IconButton>
             </Tooltip>
@@ -406,7 +406,7 @@ const MemberLayout = ({ children }) => {
               onClose={handleCloseUserMenu}
             >
               <Box sx={{ px: 2, py: 1 }}>
-                <Typography variant="subtitle1">{currentUser?.displayName || memberData?.displayName || 'Member'}</Typography>
+                <Typography variant="subtitle1">{memberData?.name || currentUser?.displayName || 'Member'}</Typography>
                 <Typography variant="body2" color="text.secondary">{currentUser?.email}</Typography>
               </Box>
               <Divider />
@@ -475,12 +475,12 @@ const MemberLayout = ({ children }) => {
         {memberData && (
           <Box sx={{ p: 2, textAlign: 'center' }}>
             <Avatar
-              src={currentUser?.photoURL || memberData?.photoURL}
-              alt={currentUser?.displayName || memberData?.displayName || 'Member'}
+              src={memberData?.profileImageUrl || currentUser?.photoURL}
+              alt={memberData?.name || currentUser?.displayName || 'Member'}
               sx={{ width: 80, height: 80, mx: 'auto', mb: 1 }}
             />
             <Typography variant="h6">
-              {currentUser?.displayName || memberData?.displayName || 'Member'}
+              {memberData?.name || currentUser?.displayName || 'Member'}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
               {memberData.membershipPlan || 'Basic Membership'}

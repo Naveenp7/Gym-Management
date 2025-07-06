@@ -24,11 +24,11 @@ import {
   LocationOn,
   CameraAlt
 } from '@mui/icons-material';
-import { collection, addDoc, Timestamp, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, query, where, getDocs, limit, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import MemberLayout from '../../components/layouts/MemberLayout';
-import { QrReader } from '@blackbox-vision/react-qr-reader';
+import { Scanner } from '@yudiel/react-qr-scanner';
 
 const QRScanner = () => {
   const { currentUser } = useAuth();
@@ -95,11 +95,22 @@ const QRScanner = () => {
 
   // Handle QR code scan result
   const handleScan = (result) => {
+    if (!currentUser) {
+      setError('Please log in to scan QR codes.');
+      setScanning(false);
+      return;
+    }
+    
     if (result && result.text) {
       setScanning(false);
       try {
         // Parse QR code data
-        const qrData = JSON.parse(result.text);
+        let qrData;
+        if (typeof result.text === 'object' && result.text !== null) {
+          qrData = result.text; // It's already an object
+        } else {
+          qrData = JSON.parse(result.text); // Try parsing as JSON string
+        }
         setScannedData(qrData);
         
         // Check if QR code is expired
@@ -225,6 +236,22 @@ const QRScanner = () => {
     try {
       setLoading(true);
       
+      // Verify user authentication and role
+      if (!currentUser) {
+        throw new Error('You must be logged in to mark attendance.');
+      }
+      
+      // Get current user's role
+      const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+      if (!userDoc.exists()) {
+        throw new Error('User profile not found.');
+      }
+      
+      const userData = userDoc.data();
+      if (userData.role !== 'member') {
+        throw new Error('Only members can mark attendance.');
+      }
+      
       // Check if already marked attendance today
       if (todayAttendance) {
         setSnackbar({
@@ -238,10 +265,11 @@ const QRScanner = () => {
       
       // Create attendance record
       const attendanceData = {
-        userId: currentUser.uid,
+        userId: currentUser.uid,  // This matches the security rules requirement
+        memberId: currentUser.uid,  // Keep this for backward compatibility
         date: Timestamp.now(),
-        qrCodeType: scannedData.type,
-        gymId: scannedData.gymId
+        qrCodeType: scannedData.type || 'unknown',
+        gymId: scannedData.gymId || 'unknown_gym',
       };
       
       // Add location data if verified
@@ -365,13 +393,15 @@ const QRScanner = () => {
               </Typography>
               
               <Box sx={{ maxWidth: 400, margin: '0 auto', mb: 3 }}>
-                <QrReader
-                  constraints={{ facingMode: 'environment' }}
-                  onResult={handleScan}
+                <Scanner
+                  onScan={(result) => {
+                    if (result) {
+                      handleScan({ text: result });
+                    }
+                  }}
                   onError={handleScanError}
-                  containerStyle={{ width: '100%' }}
-                  videoStyle={{ width: '100%' }}
-                  scanDelay={500}
+                  styles={{ container: { width: '100%' } }}
+                  constraints={{ facingMode: 'environment' }}
                 />
               </Box>
               

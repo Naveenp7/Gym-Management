@@ -218,6 +218,7 @@ const Notifications = () => {
       }));
       
       setMembers(membersList);
+      console.log("Fetched members:", membersList);
     } catch (error) {
       console.error('Error fetching members:', error);
     }
@@ -445,9 +446,10 @@ const Notifications = () => {
         return;
       }
       
+      console.log("New Notification object before sending:", newNotification);
       // Create notifications for each recipient
       const batch = writeBatch(db);
-      
+
       for (const userId of recipientIds) {
         const notificationData = {
           title: newNotification.title,
@@ -462,11 +464,12 @@ const Notifications = () => {
           createdBy: currentUser.uid,
           createdByName: currentUser.displayName || 'Admin'
         };
-        
+
         const notificationRef = doc(collection(db, 'notifications'));
         batch.set(notificationRef, notificationData);
       }
-      
+
+      console.log("Batch operations prepared:", batch);
       await batch.commit();
       
       setSnackbar({

@@ -22,7 +22,10 @@ import {
   useTheme,
   Container,
   Button,
-  Chip
+  Chip,
+  Paper,
+  BottomNavigation,
+  BottomNavigationAction
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -584,6 +587,7 @@ const MemberLayout = ({ children }) => {
         sx={{
           flexGrow: 1,
           p: 3,
+          pb: { xs: 8, sm: 3 }, // Add padding bottom for mobile to avoid content being hidden by bottom nav
           width: { sm: `calc(100% - ${open ? drawerWidth : 0}px)` },
           ml: { sm: `${open ? drawerWidth : 0}px` },
           transition: theme.transitions.create(['width', 'margin'], {
@@ -595,6 +599,24 @@ const MemberLayout = ({ children }) => {
         <Toolbar /> {/* This is for spacing below the AppBar */}
         {children}
       </Box>
+
+      {/* Bottom Navigation for Mobile */}
+      {isMobile && (
+        <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: theme.zIndex.appBar }} elevation={3}>
+          <BottomNavigation
+            showLabels
+            value={location.pathname}
+            onChange={(event, newValue) => {
+              navigate(newValue);
+            }}
+          >
+            <BottomNavigationAction label="Dashboard" value="/member/dashboard" icon={<DashboardIcon />} />
+            <BottomNavigationAction label="Scan QR" value="/member/qr-scanner" icon={<QrCodeScannerIcon />} />
+            <BottomNavigationAction label="History" value="/member/attendance-history" icon={<HistoryIcon />} />
+            <BottomNavigationAction label="Profile" value="/member/profile" icon={<PersonIcon />} />
+          </BottomNavigation>
+        </Paper>
+      )}
     </Box>
   );
 };

@@ -22,7 +22,10 @@ import {
   useTheme,
   Container,
   Collapse,
-  Button
+  Button,
+  Paper,
+  BottomNavigation,
+  BottomNavigationAction
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -573,6 +576,7 @@ const AdminLayout = ({ children }) => {
         sx={{
           flexGrow: 1,
           p: 3,
+          pb: { xs: 8, sm: 3 }, // Add padding bottom for mobile to avoid content being hidden by bottom nav
           width: { sm: `calc(100% - ${open ? drawerWidth : 0}px)` },
           ml: { sm: `${open ? drawerWidth : 0}px` },
           transition: theme.transitions.create(['width', 'margin'], {
@@ -584,6 +588,24 @@ const AdminLayout = ({ children }) => {
         <Toolbar /> {/* This is for spacing below the AppBar */}
         {children}
       </Box>
+
+      {/* Bottom Navigation for Mobile */}
+      {isMobile && (
+        <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: theme.zIndex.appBar }} elevation={3}>
+          <BottomNavigation
+            showLabels
+            value={location.pathname}
+            onChange={(event, newValue) => {
+              navigate(newValue);
+            }}
+          >
+            <BottomNavigationAction label="Dashboard" value="/admin/dashboard" icon={<DashboardIcon />} />
+            <BottomNavigationAction label="Members" value="/admin/members" icon={<PeopleIcon />} />
+            <BottomNavigationAction label="Attendance" value="/admin/attendance-grid" icon={<CalendarIcon />} />
+            <BottomNavigationAction label="Reports" value="/admin/attendance-reports" icon={<AssessmentIcon />} />
+          </BottomNavigation>
+        </Paper>
+      )}
     </Box>
   );
 };

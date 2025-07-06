@@ -68,7 +68,7 @@ const NotFound = () => {
               mb: 3
             }}
           >
-            Page Not Found
+            What You Have Is Hardwork , What You Need Is Patience , What You Want Is A Dream
           </Typography>
           
           <Typography 
@@ -81,8 +81,7 @@ const NotFound = () => {
               mb: 4
             }}
           >
-            The page you are looking for might have been removed, had its name changed, 
-            or is temporarily unavailable. Please check the URL or navigate back to a known page.
+             Sorry njan njan veagam ready aakam .Thank you for your patience. If you need assistance, please contact support.
           </Typography>
           
           <Grid container spacing={2} justifyContent="center">

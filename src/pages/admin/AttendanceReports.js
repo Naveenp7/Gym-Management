@@ -64,6 +64,7 @@ import { db } from '../../firebase';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths, isWithinInterval, parseISO } from 'date-fns';
 import { Line, Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip as ChartTooltip, Legend } from 'chart.js';
+import { calculateDaysRemaining } from '../../utils/dateUtils';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/layouts/AdminLayout';
 
@@ -119,7 +120,7 @@ const AttendanceReports = () => {
   // Fetch members data
   const fetchMembers = async () => {
     try {
-      const membersQuery = query(collection(db, 'users'), orderBy('lastName'));
+      const membersQuery = query(collection(db, 'members'), orderBy('lastName'));
       const membersSnapshot = await getDocs(membersQuery);
       const membersData = membersSnapshot.docs.map(doc => ({
         id: doc.id,
@@ -165,13 +166,14 @@ const AttendanceReports = () => {
         
         // Fetch member data if not already included
         if (attendance.userid) {
-          const memberDoc = await getDoc(doc(db, 'users', attendance.userid));
+          const memberDoc = await getDoc(doc(db, 'members', attendance.userid));
           if (memberDoc.exists()) {
             const memberData = memberDoc.data();
             attendance.member = {
               id: memberDoc.id,
               firstName: memberData.firstName,
               lastName: memberData.lastName,
+              membershipExpiry: memberData.membershipExpiry,
               email: memberData.email,
               membershipPlan: memberData.membershipPlan,
               fullName: `${memberData.firstName} ${memberData.lastName}`
@@ -230,13 +232,14 @@ const AttendanceReports = () => {
         
         // Fetch member data if not already included
         if (attendance.userid) {
-          const memberDoc = await getDoc(doc(db, 'users', attendance.userid));
+          const memberDoc = await getDoc(doc(db, 'members', attendance.userid));
           if (memberDoc.exists()) {
             const memberData = memberDoc.data();
             attendance.member = {
               id: memberDoc.id,
               firstName: memberData.firstName,
               lastName: memberData.lastName,
+              membershipExpiry: memberData.membershipExpiry,
               email: memberData.email,
               membershipPlan: memberData.membershipPlan,
               fullName: `${memberData.firstName} ${memberData.lastName}`
@@ -846,53 +849,51 @@ const AttendanceReports = () => {
                       <TableBody>
                         {filteredData
                           .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                          .map((row) => (
-                            <TableRow key={row.id}>
-                              <TableCell>{format(row.date, 'yyyy-MM-dd')}</TableCell>
-                              <TableCell>{format(row.date, 'HH:mm:ss')}</TableCell>
-                              <TableCell>
-                                {row.member ? (
-                                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Person sx={{ mr: 1, fontSize: 20, color: 'primary.main' }} />
-                                    {row.member.firstName} {row.member.lastName}
-                                  </Box>
-                                ) : (
-                                  'N/A'
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {row.member && row.member.membershipPlan ? (
-                                  <Chip 
-                                    label={row.member.membershipPlan} 
-                                    size="small" 
-                                    color="primary" 
-                                    variant="outlined" 
-                                  />
-                                ) : (
-                                  'N/A'
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {row.location ? (
-                                  <Tooltip title={`${row.location.latitude}, ${row.location.longitude}`}>
-                                    <Chip 
-                                      label="Location Verified" 
-                                      size="small" 
-                                      color="success" 
-                                      variant="outlined" 
-                                    />
-                                  </Tooltip>
-                                ) : (
-                                  <Chip 
-                                    label="No Location" 
-                                    size="small" 
-                                    color="default" 
-                                    variant="outlined" 
-                                  />
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                          .map((row) => {
+                            const daysRemaining = row.member ? calculateDaysRemaining(row.member.membershipExpiry) : null;
+                            return (
+                              <TableRow key={row.id}>
+                                <TableCell>{format(row.date, 'yyyy-MM-dd')}</TableCell>
+                                <TableCell>{format(row.date, 'HH:mm:ss')}</TableCell>
+                                <TableCell>
+                                  {row.member ? (
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                      <Person sx={{ mr: 1, fontSize: 20, color: 'primary.main' }} />
+                                      {row.member.firstName} {row.member.lastName}
+                                    </Box>
+                                  ) : (
+                                    'N/A'
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {row.member && row.member.membershipPlan ? (
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
+                                      <Chip label={row.member.membershipPlan} size="small" color="primary" variant="outlined" />
+                                      {daysRemaining !== null && (
+                                        <Typography 
+                                          variant="caption" 
+                                          color={daysRemaining <= 7 && daysRemaining > 0 ? 'warning.main' : (daysRemaining === 0 ? 'error.main' : 'text.secondary')}
+                                        >
+                                          {daysRemaining > 0 ? `${daysRemaining} days left` : 'Expired'}
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  ) : (
+                                    'N/A'
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {row.location ? (
+                                    <Tooltip title={`${row.location.latitude}, ${row.location.longitude}`}>
+                                      <Chip label="Location Verified" size="small" color="success" variant="outlined" />
+                                    </Tooltip>
+                                  ) : (
+                                    <Chip label="No Location" size="small" color="default" variant="outlined" />
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                       </TableBody>
                     </Table>
                   </TableContainer>

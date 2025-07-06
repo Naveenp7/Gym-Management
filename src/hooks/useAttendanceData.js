@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+import { collection, query, getDocs, where, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { format } from 'date-fns';
-import { COLLECTIONS } from '../constants/firestore';
+import { calculateDaysRemaining } from '../utils/dateUtils';
 
 const useAttendanceData = () => {
   const [members, setMembers] = useState([]);
@@ -10,67 +9,52 @@ const useAttendanceData = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchMembersAndAttendance = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const usersCollectionRef = collection(db, COLLECTIONS.USERS);
-        const usersSnapshot = await getDocs(usersCollectionRef);
-        const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setError(null);
 
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date();
-        endOfDay.setHours(23, 59, 59, 999);
-
-        const attendanceCollectionRef = collection(db, COLLECTIONS.ATTENDANCE);
-        const q = query(
-          attendanceCollectionRef,
-          where('date', '>=', startOfDay),
-          where('date', '<=', endOfDay)
-        );
-        const attendanceSnapshot = await getDocs(q);
-        const presentUserIds = new Set(attendanceSnapshot.docs.map(doc => doc.data().userId));
-
-        const membersWithStatus = await Promise.all(usersList.map(async (user) => {
-
-          const isPresent = presentUserIds.has(user.id);
-          let membershipPlan = 'N/A';
-          let remainingDays = 'N/A';
-
-          console.log('Processing user:', user.id, 'Membership Plan ID:', user.membershipPlanId, 'Membership End Date:', user.membershipEndDate);
-          if (user.membershipPlanId) {
-            const planDocRef = doc(db, COLLECTIONS.MEMBERSHIP_PLANS, user.membershipPlanId);
-            const planDocSnap = await getDoc(planDocRef);
-            console.log('Membership Plan Doc Exists:', planDocSnap.exists(), 'for user:', user.id);
-            if (planDocSnap.exists()) {
-              const planData = planDocSnap.data();
-              membershipPlan = planData.name;
-
-              if (user.membershipEndDate) {
-                const endDate = new Date(user.membershipEndDate);
-                const todayDate = new Date();
-                const diffTime = endDate.getTime() - todayDate.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                remainingDays = diffDays > 0 ? diffDays : 0;
-              } else {
-                remainingDays = 'N/A'; // Explicitly set to N/A if membershipEndDate is missing
-              }
-            }
-          }
-
-          return { ...user, isPresent, membershipPlan, remainingDays };
+        // 1. Fetch all members from the 'members' collection, which contains membership details.
+        const membersQuery = query(collection(db, 'members'));
+        const membersSnapshot = await getDocs(membersQuery);
+        const allMembers = membersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
         }));
 
-        setMembers(membersWithStatus);
+        // 2. Fetch today's attendance records
+        const today = new Date();
+        const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+        const endOfToday = new Date(today.setHours(23, 59, 59, 999));
+
+        const attendanceQuery = query(
+          collection(db, 'attendance'),
+          where('date', '>=', Timestamp.fromDate(startOfToday)),
+          where('date', '<=', Timestamp.fromDate(endOfToday))
+        );
+        const attendanceSnapshot = await getDocs(attendanceQuery);
+        const presentMemberIds = new Set(attendanceSnapshot.docs.map(doc => doc.data().userId));
+
+        // 3. Combine member data with attendance status and remaining days efficiently.
+        const combinedData = allMembers.map(member => ({
+          ...member,
+          // Ensure fullName is available, falling back to name or constructing from firstName/lastName.
+          fullName: member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim(),
+          isPresent: presentMemberIds.has(member.id),
+          // Use the centralized utility function for calculating remaining days.
+          remainingDays: calculateDaysRemaining(member.membershipExpiry),
+        }));
+
+        setMembers(combinedData);
       } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to load members and attendance data.');
+        console.error("Error fetching attendance data:", err);
+        setError('Failed to fetch attendance data. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMembersAndAttendance();
+    fetchData();
   }, []);
 
   return { members, loading, error };

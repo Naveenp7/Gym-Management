@@ -1,5 +1,5 @@
 import React from 'react';
-import { Container, Typography, Grid, Card, CardContent, CircularProgress, Alert, Divider } from '@mui/material';
+import { Container, Typography, Grid, Card, CardContent, CircularProgress, Alert, Divider, Box } from '@mui/material';
 import useAttendanceData from '../../hooks/useAttendanceData';
 
 const AttendanceGrid = () => {
@@ -34,12 +34,19 @@ const AttendanceGrid = () => {
         }}
       >
         <CardContent>
-          <Typography variant="h6">{member.firstName} {member.lastName}</Typography>
-          <Typography variant="body2" color="textSecondary">{member.email}</Typography>
-          <Typography variant="body2" color="textSecondary">Membership: {member.membershipPlan}</Typography>
-          <Typography variant="body2" color="textSecondary">
-            Remaining Days: {member.remainingDays !== 'N/A' ? `${member.remainingDays} days` : 'N/A'}
-          </Typography>
+          <Typography variant="h6" noWrap title={member.fullName}>{member.fullName || 'Unnamed Member'}</Typography>
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2" color="textSecondary" noWrap title={member.email}>{member.email}</Typography>
+            <Typography variant="body2" color="textSecondary">
+              Membership: {member.membershipPlan || 'N/A'}
+            </Typography>
+            <Typography 
+              variant="body2" 
+              color={member.remainingDays > 7 ? 'text.secondary' : (member.remainingDays > 0 ? 'warning.dark' : 'error.dark')}
+            >
+              {member.remainingDays > 0 ? `Remaining Days: ${member.remainingDays}` : 'Membership Expired'}
+            </Typography>
+          </Box>
           <Typography
             variant="body1"
             sx={{

@@ -70,25 +70,25 @@ const AdminDashboard = () => {
       try {
         setLoading(true);
         
-        // Get all members
-        const membersQuery = query(collection(db, 'users'), where('role', '==', 'member'));
+        // Get all members from the 'members' collection, which contains detailed membership info.
+        const membersQuery = query(collection(db, 'members'));
         const membersSnapshot = await getDocs(membersQuery);
         const members = membersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
         // Calculate total members
         const totalMembers = members.length;
         
-        // Calculate active members (with valid membership)
+        // Calculate active and expiring members
         const now = new Date();
-        const activeMembers = members.filter(member => {
-          return member.membershipExpiry && new Date(member.membershipExpiry) > now;
-        }).length;
-        
-        // Calculate members with expiring membership (within 7 days)
         const sevenDaysLater = new Date();
         sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+        const activeMembers = members.filter(member => {
+          const expiryDate = member.membershipExpiry?.toDate ? member.membershipExpiry.toDate() : new Date(member.membershipExpiry);
+          return expiryDate && expiryDate > now;
+        }).length;
+        
         const expiringMembers = members.filter(member => {
-          const expiryDate = member.membershipExpiry ? new Date(member.membershipExpiry) : null;
+          const expiryDate = member.membershipExpiry?.toDate ? member.membershipExpiry.toDate() : new Date(member.membershipExpiry);
           return expiryDate && expiryDate > now && expiryDate < sevenDaysLater;
         }).length;
         

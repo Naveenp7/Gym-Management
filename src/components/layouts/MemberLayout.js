@@ -74,17 +74,15 @@ const MemberLayout = ({ children }) => {
     
     const fetchMemberData = async () => {
       try {
-        const memberQuery = query(
-          collection(db, 'users'),
-          where('uid', '==', currentUser.uid)
-        );
+        // Fetch member data directly from the 'members' collection using the user's UID
+        // This is more efficient and aligns with the security rules.
+        const memberDocRef = doc(db, 'members', currentUser.uid);
+        const memberDoc = await getDoc(memberDocRef);
         
-        const memberSnapshot = await getDocs(memberQuery);
-        
-        if (!memberSnapshot.empty) {
+        if (memberDoc.exists()) {
           setMemberData({
-            id: memberSnapshot.docs[0].id,
-            ...memberSnapshot.docs[0].data()
+            id: memberDoc.id,
+            ...memberDoc.data()
           });
         }
       } catch (error) {

@@ -28,8 +28,6 @@ const Register = () => {
     firstName: '',
     lastName: '',
     phone: '',
-    role: 'member', // Default role
-    adminCode: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,12 +55,6 @@ const Register = () => {
       return false;
     }
     
-    // Check if admin code is provided for admin registration
-    if (formData.role === 'admin' && formData.adminCode !== 'GYM_ADMIN_2023') {
-      setError('Invalid admin code');
-      return false;
-    }
-    
     return true;
   };
 
@@ -84,10 +76,10 @@ const Register = () => {
       
       // The signup function now handles creating user records in 'users' and 'members' collections.
       // It also logs the user in automatically.
-      await signup(formData.email, formData.password, formData.role, userData);
+      // All new users are registered as 'member' by default.
+      await signup(formData.email, formData.password, 'member', userData);
       
-      // Redirect based on role
-      const redirectPath = formData.role === 'admin' ? '/admin/dashboard' : '/member/dashboard';
+      const redirectPath = '/member/dashboard';
       navigate(redirectPath);
 
     } catch (error) {
@@ -205,37 +197,6 @@ const Register = () => {
                 onChange={handleChange}
               />
             </Grid>
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel id="role-label">Register as</InputLabel>
-                <Select
-                  labelId="role-label"
-                  id="role"
-                  name="role"
-                  value={formData.role}
-                  label="Register as"
-                  onChange={handleChange}
-                >
-                  <MenuItem value="member">Member</MenuItem>
-                  <MenuItem value="admin">Admin</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            {formData.role === 'admin' && (
-              <Grid item xs={12}>
-                <TextField
-                  required
-                  fullWidth
-                  name="adminCode"
-                  label="Admin Code"
-                  type="password"
-                  id="adminCode"
-                  value={formData.adminCode}
-                  onChange={handleChange}
-                  helperText="Enter the admin code provided by the system administrator"
-                />
-              </Grid>
-            )}
           </Grid>
           <Button
             type="submit"

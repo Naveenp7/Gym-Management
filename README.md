@@ -46,7 +46,17 @@ A comprehensive gym management system built with React, Material-UI, and Firebas
    - Enable Firestore Database
    - Enable Storage
    - Get your Firebase configuration (Project settings > General > Your apps > Firebase SDK snippet > Config)
-   - Update the `src/firebase.js` file with your configuration
+   - Create a `.env` file in the root directory with the following variables:
+     ```
+     REACT_APP_FIREBASE_API_KEY=your_api_key
+     REACT_APP_FIREBASE_AUTH_DOMAIN=your_auth_domain
+     REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+     REACT_APP_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+     REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+     REACT_APP_FIREBASE_APP_ID=your_app_id
+     REACT_APP_FIREBASE_MEASUREMENT_ID=your_measurement_id
+     ```
+   - Replace the placeholder values with your Firebase configuration
 
 4. Set up Firestore indexes
    - Go to Firebase Console > Firestore Database > Indexes

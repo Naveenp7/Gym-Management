@@ -40,9 +40,11 @@ import {
   FilterList,
   CheckCircle,
   Warning,
+  AdminPanelSettings,
   Email,
   Phone,
   CalendarToday,
+  PersonRemove,
   QrCode,
   FileDownload
 } from '@mui/icons-material';
@@ -110,7 +112,7 @@ const MemberManagement = () => {
       if (filterStatus === 'all') {
         membersQuery = query(
           collection(db, 'members'),
-          orderBy('firstName') // or 'lastName' or any field you want to sort by
+          orderBy('name')
         );
       } else if (filterStatus === 'active') {
         const now = Timestamp.now();
@@ -141,12 +143,24 @@ const MemberManagement = () => {
       }
       
       const membersSnapshot = await getDocs(membersQuery);
-      const membersData = membersSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        membershipStartDate: doc.data().membershipStartDate?.toDate(),
-        membershipExpiry: doc.data().membershipExpiry?.toDate()
-      }));
+
+      // Fetch all user roles in a single pass for efficiency
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const userRoles = {};
+      usersSnapshot.forEach(doc => {
+        userRoles[doc.id] = doc.data().role || 'member';
+      });
+
+      const membersData = membersSnapshot.docs.map(memberDoc => {
+        const memberData = memberDoc.data();
+        return {
+          id: memberDoc.id,
+          ...memberData,
+          role: userRoles[memberDoc.id] || 'member', // Assign role from the users map
+          membershipStartDate: memberData.membershipStartDate?.toDate(),
+          membershipExpiry: memberData.membershipExpiry?.toDate()
+        }
+      });
       
       setMembers(membersData);
     } catch (error) {
@@ -158,6 +172,45 @@ const MemberManagement = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const promoteToAdmin = async (memberId, memberName) => {
+    if (window.confirm(`Are you sure you want to promote ${memberName} to an Admin? This action grants them full administrative privileges.`)) {
+      try {
+        const userDocRef = doc(db, 'users', memberId);
+        await updateDoc(userDocRef, {
+          role: 'admin'
+        });
+        
+        setSnackbar({ open: true, message: 'Member promoted to Admin successfully.', severity: 'success' });
+        fetchMembers(); // Refresh the list to show the new role
+      } catch (error) {
+        console.error('Error promoting member to admin:', error);
+        setSnackbar({ open: true, message: 'Failed to promote member. Please try again.', severity: 'error' });
+      }
+    }
+  };
+
+  const demoteFromAdmin = async (memberId, memberName) => {
+    // Prevent an admin from demoting themselves
+    if (memberId === currentUser.uid) {
+      setSnackbar({ open: true, message: 'You cannot demote yourself.', severity: 'error' });
+      return;
+    }
+  
+    if (window.confirm(`Are you sure you want to demote ${memberName} from an Admin role? Their administrative privileges will be revoked.`)) {
+      try {
+        const userDocRef = doc(db, 'users', memberId);
+        await updateDoc(userDocRef, {
+          role: 'member'
+        });
+        setSnackbar({ open: true, message: 'Admin demoted to Member successfully.', severity: 'success' });
+        fetchMembers(); // Refresh the list
+      } catch (error) {
+        console.error('Error demoting admin:', error);
+        setSnackbar({ open: true, message: 'Failed to demote admin. Please try again.', severity: 'error' });
+      }
     }
   };
 
@@ -318,10 +371,14 @@ const MemberManagement = () => {
         // Add user data to Firestore (members collection)
         memberData.createdAt = Timestamp.now();
         await setDoc(doc(db, 'members', userCredential.user.uid), memberData);
+        
+        const nameParts = formData.name.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
         // Add user data to Firestore (users collection)
         await setDoc(doc(db, 'users', userCredential.user.uid), {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
+          firstName: firstName,
+          lastName: lastName,
           email: formData.email,
           phone: formData.phone,
           role: 'member',
@@ -564,6 +621,12 @@ const MemberManagement = () => {
                                 <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
                                   {member.name || 'No Name'}
                                 </Typography>
+                                <Chip 
+                                  label={member.role} 
+                                  size="small" 
+                                  color={member.role === 'admin' ? 'success' : 'default'} 
+                                  sx={{ textTransform: 'capitalize', width: 'fit-content', mt: 0.5 }}
+                                />
                                 <Typography variant="body2" color="textSecondary">
                                   ID: {member.id.substring(0, 8)}
                                 </Typography>
@@ -631,6 +694,21 @@ const MemberManagement = () => {
                                   <Delete />
                                 </IconButton>
                               </Tooltip>
+                              <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+                              {member.role === 'member' && (
+                                <Tooltip title="Promote to Admin">
+                                  <IconButton onClick={() => promoteToAdmin(member.id, member.name)} color="secondary">
+                                    <AdminPanelSettings />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                              {member.role === 'admin' && member.id !== currentUser.uid && (
+                                <Tooltip title="Demote to Member">
+                                  <IconButton onClick={() => demoteFromAdmin(member.id, member.name)} color="warning">
+                                    <PersonRemove />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                             </TableCell>
                           </TableRow>
                         );

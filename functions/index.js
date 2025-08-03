@@ -16,6 +16,57 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+/**
+ * A helper function to fetch user data and check email preferences.
+ * @param {string} userId The ID of the user.
+ * @param {string|null} triggerType A string indicating the trigger source (e.g., 'attendance').
+ * @return {Promise<object|null>} An object with data if email should be sent, otherwise null.
+ */
+async function getUserAndSettingsForEmail(userId, triggerType = null) {
+  try {
+    // Fetch user, member, and settings data in parallel
+    const userDocPromise = admin.firestore()
+        .collection("users").doc(userId).get();
+    const memberDocPromise = admin.firestore()
+        .collection("members").doc(userId).get();
+    const settingsDocPromise = admin.firestore()
+        .collection("settings").doc("notifications").get();
+
+    const [userDoc, memberDoc, settingsDoc] = await Promise.all([
+      userDocPromise,
+      memberDocPromise,
+      settingsDocPromise,
+    ]);
+
+    const userData = userDoc.data();
+    const memberData = memberDoc.data();
+    const settingsData = settingsDoc.data();
+
+    // --- Validation Checks ---
+    if (!settingsData || !settingsData.enableEmailNotifications) {
+      console.log("Global email notifications are disabled. Aborting.");
+      return null;
+    }
+    if (triggerType === 'attendance' && settingsData.notifyOnAttendance === false) {
+      console.log("Attendance email notifications are disabled. Aborting.");
+      return null;
+    }
+    if (!userData || !userData.email) {
+      console.log("No email found for user:", userId);
+      return null;
+    }
+    if (memberData?.preferences?.receiveEmails === false) {
+      console.log(`User ${userId} has opted out of email notifications. Aborting.`);
+      return null;
+    }
+
+    return {userData, settingsData};
+  } catch (error) {
+    console.error(`Error fetching data for user ${userId}:`, error);
+    return null;
+  }
+}
+
 exports.sendAttendanceEmail = functions.firestore
     .document("attendance/{attendanceId}")
     .onCreate(async (snap, context) => {
@@ -23,52 +74,12 @@ exports.sendAttendanceEmail = functions.firestore
       const userId = attendanceData.userId;
 
       try {
-        // Fetch user, member, and settings data in parallel
-        const userDocPromise = admin.firestore()
-            .collection("users").doc(userId).get();
-        const memberDocPromise = admin.firestore()
-            .collection("members").doc(userId).get();
-        const settingsDocPromise = admin.firestore()
-            .collection("settings").doc("notifications").get();
-
-        const [userDoc, memberDoc, settingsDoc] = await Promise.all([
-          userDocPromise,
-          memberDocPromise,
-          settingsDocPromise,
-        ]);
-
-        const userData = userDoc.data();
-        const memberData = memberDoc.data();
-        const settingsData = settingsDoc.data();
-
-        // --- Start of validation checks ---
-
-        // 1. Check if global email notifications are enabled
-        // AND if attendance notifications are enabled
-        if (
-          !settingsData ||
-        !settingsData.enableEmailNotifications ||
-        !settingsData.notifyOnAttendance
-        ) {
-          console.log("Attendance email notifications are disabled. Aborting.");
+        const emailData = await getUserAndSettingsForEmail(userId, 'attendance');
+        if (!emailData) {
           return null;
         }
-
-        // 2. Check if the user has an email address
-        if (!userData || !userData.email) {
-          console.log("No email found for user:", userId);
-          return null;
-        }
-
-        // 3. Check if the member has opted-in to receive emails
-        // We only abort if the user has EXPLICITLY opted out.
-        // If the preference is not set, we assume they want to receive emails.
-        if (memberData?.preferences?.receiveEmails === false) {
-          console.log(`User ${userId} has opted out of email notifications. Aborting.`);
-          return null;
-        }
-
-        // --- End of validation checks ---
+        
+        const {userData, settingsData} = emailData;
 
         const mailOptions = {
           from: `"${settingsData.gymName || "Your Gym"}" <${
@@ -195,47 +206,12 @@ exports.sendCustomNotificationEmail = functions.firestore
       }
 
       try {
-        // Fetch user, member, and settings data in parallel
-        const userDocPromise = admin.firestore()
-            .collection("users").doc(userId).get();
-        const memberDocPromise = admin.firestore()
-            .collection("members").doc(userId).get();
-        const settingsDocPromise = admin.firestore()
-            .collection("settings").doc("notifications").get();
-
-        const [userDoc, memberDoc, settingsDoc] = await Promise.all([
-          userDocPromise,
-          memberDocPromise,
-          settingsDocPromise,
-        ]);
-
-        const userData = userDoc.data();
-        const memberData = memberDoc.data();
-        const settingsData = settingsDoc.data();
-
-        // --- Start of validation checks ---
-
-        // 1. Check if global email notifications are enabled
-        if (!settingsData || !settingsData.enableEmailNotifications) {
-          console.log("Global email notifications are disabled. Aborting.");
+        const emailData = await getUserAndSettingsForEmail(userId, 'notification');
+        if (!emailData) {
           return null;
         }
-
-        // 2. Check if the user has an email address
-        if (!userData || !userData.email) {
-          console.log("No email found for user:", userId);
-          return null;
-        }
-
-        // 3. Check if the member has opted-in to receive emails
-        // We only abort if the user has EXPLICITLY opted out.
-        // If the preference is not set, we assume they want to receive emails.
-        if (memberData?.preferences?.receiveEmails === false) {
-          console.log(`User ${userId} has opted out of email notifications. Aborting.`);
-          return null;
-        }
-
-        // --- End of validation checks ---
+        
+        const {userData, settingsData} = emailData;
 
         const mailOptions = {
           from: `"${settingsData.gymName || "Your Gym"}" <${

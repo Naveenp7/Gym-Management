@@ -420,20 +420,20 @@ const Notifications = () => {
   return (
     <MemberLayout>
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" gutterBottom>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 3, gap: 2 }}>
+          <Typography variant="h4" gutterBottom={false}>
             My Notifications
             {unreadCount > 0 && (
               <Chip 
                 label={`${unreadCount} unread`} 
                 color="primary" 
                 size="small" 
-                sx={{ ml: 2 }}
+                sx={{ ml: 2, mt: { xs: 1, md: 0 } }}
               />
             )}
           </Typography>
           
-          <Box>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, flexWrap: 'wrap' }}>
             <FormControlLabel
               control={
                 <Switch
@@ -450,7 +450,6 @@ const Notifications = () => {
               startIcon={<MarkEmailRead />}
               onClick={markAllAsRead}
               disabled={unreadCount === 0}
-              sx={{ mr: 1 }}
             >
               Mark All Read
             </Button>
@@ -469,7 +468,14 @@ const Notifications = () => {
         
         <Paper sx={{ mb: 3 }} elevation={3}>
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={tabValue} onChange={handleTabChange} aria-label="notification tabs">
+            <Tabs
+              value={tabValue}
+              onChange={handleTabChange}
+              aria-label="notification tabs"
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
+            >
               <Tab 
                 label="All" 
                 icon={<Badge badgeContent={notifications.length} color="primary">
@@ -553,14 +559,15 @@ const Notifications = () => {
                               ? `${notification.message.substring(0, 100)}...`
                               : notification.message}
                           </Typography>
-                          <Typography
-                            component="span"
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ display: 'block', mt: 1 }}
-                          >
-                            {formatTimestamp(notification.timestamp)}
-                          </Typography>
+                          <Box sx={{ mt: 1, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' } }}>
+                            <Typography
+                              component="span"
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {formatTimestamp(notification.timestamp)}
+                            </Typography>
+                          </Box>
                         </React.Fragment>
                       }
                     />

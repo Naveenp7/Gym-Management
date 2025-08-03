@@ -131,7 +131,8 @@ const Notifications = () => {
     if (autoRefresh) {
       const notificationsQuery = query(
         collection(db, 'notifications'),
-        where('adminView', '==', true),
+        // Query for notifications that are specifically logs for the admin
+        where('adminLog', '==', true),
         orderBy('timestamp', 'desc'),
         limit(100)
       );
@@ -181,7 +182,8 @@ const Notifications = () => {
       
       const notificationsQuery = query(
         collection(db, 'notifications'),
-        where('adminView', '==', true),
+        // Query for notifications that are specifically logs for the admin
+        where('adminLog', '==', true),
         orderBy('timestamp', 'desc'),
         limit(100)
       );
@@ -483,36 +485,55 @@ const Notifications = () => {
       
       // Create notifications for each recipient
       const batch = writeBatch(db);
+      
+      // 1. Create a single log notification for the admin's view
+      const recipientsInfo = newNotification.recipients === 'all' 
+        ? 'All Members' 
+        : `${recipientIds.length} selected member(s)`;
 
+      const adminLogData = {
+        title: newNotification.title,
+        message: newNotification.message,
+        type: newNotification.type,
+        priority: newNotification.priority,
+        adminLog: true, // This is a log for the admin
+        read: true, // Logs are considered "read" by default for the admin
+        timestamp: serverTimestamp(),
+        createdBy: currentUser.uid,
+        createdByName: currentUser.displayName || 'Admin',
+        recipientsInfo: recipientsInfo,
+        recipientIds: recipientIds,
+        ...(imageUrl && { imageUrl }),
+      };
+
+      const adminLogRef = doc(collection(db, 'notifications'));
+      batch.set(adminLogRef, adminLogData);
+
+      // 2. Create individual notifications for each recipient
       for (const userId of recipientIds) {
-        const member = members.find(m => m.id === userId); // Find the member details
         const notificationData = {
           title: newNotification.title,
           message: newNotification.message,
           type: newNotification.type,
           category: newNotification.type, // For backward compatibility
           priority: newNotification.priority,
-          userId: userId,
-          adminView: true, // For admin to see in their list
+          userId: userId, // Specific to the member
           read: false,
           timestamp: serverTimestamp(),
           createdBy: currentUser.uid,
           createdByName: currentUser.displayName || 'Admin',
           ...(imageUrl && { imageUrl }),
-          // Set the recipient's name for display purposes in the admin list
-          userName: member ? member.displayName : 'Unknown Member',
-          imageUrl: imageUrl, // Add image URL to notification
         };
 
         const notificationRef = doc(collection(db, 'notifications'));
         batch.set(notificationRef, notificationData);
       }
-
+      
       await batch.commit();
       
       setSnackbar({
         open: true,
-        message: `Notification sent to ${recipientIds.length} members`,
+        message: `Notification sent to ${recipientIds.length} member(s)`,
         severity: 'success'
       });
       
@@ -603,20 +624,20 @@ const Notifications = () => {
   return (
     <AdminLayout>
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" gutterBottom>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 3, gap: 2 }}>
+          <Typography variant="h4" gutterBottom={false}>
             Notification Management
             {unreadCount > 0 && (
               <Chip 
                 label={`${unreadCount} unread`} 
                 color="primary" 
                 size="small" 
-                sx={{ ml: 2 }}
+                sx={{ ml: 2, mt: { xs: 1, md: 0 } }}
               />
             )}
           </Typography>
           
-          <Box>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, flexWrap: 'wrap' }}>
             <FormControlLabel
               control={
                 <Switch
@@ -633,7 +654,6 @@ const Notifications = () => {
               startIcon={<MarkEmailRead />}
               onClick={markAllAsRead}
               disabled={unreadCount === 0}
-              sx={{ mr: 1 }}
             >
               Mark All Read
             </Button>
@@ -644,7 +664,6 @@ const Notifications = () => {
               startIcon={<DeleteSweep />}
               onClick={() => setDeleteAllDialogOpen(true)}
               disabled={notifications.filter(n => n.read).length === 0}
-              sx={{ mr: 1 }}
             >
               Delete Read
             </Button>
@@ -662,7 +681,14 @@ const Notifications = () => {
         
         <Paper sx={{ mb: 3 }} elevation={3}>
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={tabValue} onChange={handleTabChange} aria-label="notification tabs">
+            <Tabs
+              value={tabValue}
+              onChange={handleTabChange}
+              aria-label="notification tabs"
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
+            >
               <Tab 
                 label="All" 
                 icon={<Badge badgeContent={notifications.length} color="primary">
@@ -747,7 +773,7 @@ const Notifications = () => {
                               ? `${notification.message.substring(0, 100)}...`
                               : notification.message}
                           </Typography>
-                          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
+                          <Box sx={{ mt: 1, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' } }}>
                             <Typography
                               component="span"
                               variant="caption"
@@ -761,7 +787,7 @@ const Notifications = () => {
                               variant="caption"
                               color="text.secondary"
                             >
-                              Recipient: {notification.userName || 'Unknown'}
+                              Recipients: {notification.recipientsInfo || 'N/A'}
                             </Typography>
                           </Box>
                         </React.Fragment>
@@ -945,8 +971,8 @@ const Notifications = () => {
                   <Typography variant="caption" color="textSecondary">
                     Recipient:
                   </Typography>
-                  <Typography variant="body2">
-                    {notificationDetail.userName || 'Unknown'}
+                  <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                    {notificationDetail.recipientsInfo || 'N/A'}
                   </Typography>
                 </Grid>
                 
